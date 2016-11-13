@@ -25,6 +25,8 @@ from xml.etree import ElementTree
 from suds.xsd.doctor import Import
 from suds.xsd.doctor import ImportDoctor
 import pickle
+import pandas as pd
+import numpy as np
 
 ris_data = []
 
@@ -124,8 +126,15 @@ def main(argv):
     tpIPmx800dual(CLIENT6)
     tpIPsx80(CLIENT7)
     print(len(ris_data), " Found:")
-    for i in ris_data:
-       print (i)
+#    for i in ris_data:
+#       print (i)
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+    df = pd.DataFrame(ris_data)
+    df.index = np.arange(1, len(df) + 1)
+    df.columns = ['Room Name', 'Device Name', 'Number-Status', 'Codec Login']
+    print (df)
 
 if __name__=='__main__':
         main(sys.argv[1:])]]></script>
