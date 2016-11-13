@@ -1,0 +1,118 @@
+<joblist>
+  <job>
+    <context>
+      <options preserveOrder='true'>
+        <option name='MAC' required='true' />
+      </options>
+    </context>
+    <description></description>
+    <executionEnabled>true</executionEnabled>
+    <id>4f4b18bf-108d-4227-9075-42e530a50d06</id>
+    <loglevel>INFO</loglevel>
+    <name>Purge_Phone</name>
+    <notification>
+      <onsuccess>
+        <email attachLog='true' recipients='c.zhong@fcl.ca' subject='Phone_Purge' />
+      </onsuccess>
+    </notification>
+    <scheduleEnabled>true</scheduleEnabled>
+    <sequence keepgoing='false' strategy='node-first'>
+      <command>
+        <script><![CDATA[#!/usr/bin/python3.4
+
+import ssl
+import urllib
+import sys, getopt, re, requests
+from suds.transport.https import HttpAuthenticated
+from suds.client import Client
+from suds.sax.element import Element
+from xml.etree import ElementTree
+import pickle
+
+def pk():
+    pickle_in = open("/opt/credential/pwds","rb")
+    dict = pickle.load(pickle_in)
+    return dict
+
+def createClient():
+	cmserver = '10.41.40.10'
+	cmport = '8443'
+	pwd = pk()
+	username = 'ccmadmin'
+	password = pwd[1]
+	location = 'https://' + cmserver + ':' + cmport + '/axl/'
+	
+	t = HttpAuthenticated(username=username, password=password)
+	t.handler=urllib.request.HTTPBasicAuthHandler(t.pm)
+
+	ssl_def_context = ssl.create_default_context()
+	ssl_def_context.check_hostname = False
+	ssl_def_context.verify_mode = ssl.CERT_NONE
+
+	t1=urllib.request.HTTPSHandler(context=ssl_def_context)
+	t.urlopener = urllib.request.build_opener(t.handler,t1)
+	wsdl ='file:///opt/tempfile/axlsqltoolkit/schema/current/AXLAPI.wsdl'
+
+	client=Client(wsdl, location=location, transport=t)
+	return client
+	
+
+def getUser(client,userName):
+	try:
+	    getUser = client.service.getUser(userid=userName)
+	    DEVICEID = getUser[0][0][11][0][0]
+	    return DEVICEID
+	except:
+		return "-ERROR: executing getPhone"
+
+
+def getPhone(client,deviceid):
+	try:
+	    getPhone = client.service.getPhone('SEP' + deviceid)
+	    return getPhone['return']['phone']['lines']['line'][0]['dirn']['pattern']
+	except:
+	    return "-ERROR: executing getPhone"
+
+
+
+def delPhone(client,deviceid):
+        try:
+            delPhone = client.service.removePhone('SEP' + deviceid)
+            return delPhone
+        except:
+            return "-ERROR: executing delPhone"
+
+
+def main(argv):
+        try:
+                opts, args = getopt.getopt(argv, ["gu","gp","dp"],["getUser=","getPhone=","delPhone="])
+        except getopt.GetoptError as err:
+                print (err)
+                sys.exit(2)
+        for opt, arg in opts:
+                print ('Processing... ' + arg)
+                if opt == '--getUser':
+                        print ('-expecting a user.name')
+                        USERNAME = arg
+                        CLIENT = createClient()
+                        print (str(getUser(CLIENT, USERNAME)))
+                elif opt == '--getPhone':
+                        print ('-expecting a MAC')
+                        CLIENT = createClient()
+                        DEVICEID = arg
+                        print (str(getPhone(CLIENT,DEVICEID)))
+                elif opt == '--delPhone':
+                        print ('-expecting a MAC')
+                        CLIENT = createClient()
+                        DEVICEID = arg
+                        print (str(getPhone(CLIENT,DEVICEID)))
+                        print (str(delPhone(CLIENT,DEVICEID)))
+
+if __name__=='__main__':
+        main(sys.argv[1:])]]></script>
+        <scriptargs>--delPhone ${option.MAC}</scriptargs>
+      </command>
+    </sequence>
+    <uuid>4f4b18bf-108d-4227-9075-42e530a50d06</uuid>
+  </job>
+</joblist>

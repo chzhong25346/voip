@@ -1,0 +1,147 @@
+<joblist>
+  <job>
+    <context>
+      <options preserveOrder='true'>
+        <option name='table' required='true' />
+      </options>
+    </context>
+    <description></description>
+    <executionEnabled>true</executionEnabled>
+    <id>fde07674-53e4-4b4d-b85f-600f4f8087dc</id>
+    <loglevel>INFO</loglevel>
+    <name>UCN_Inactive_User_Checker</name>
+    <notification>
+      <onsuccess>
+        <email attachLog='true' recipients='c.zhong@fcl.ca' subject='UCX_Inactive_User_Checker' />
+      </onsuccess>
+    </notification>
+    <scheduleEnabled>true</scheduleEnabled>
+    <sequence keepgoing='false' strategy='node-first'>
+      <command>
+        <script><![CDATA[#!/usr/bin/python
+import ldap 
+from ldap.controls import SimplePagedResultsControl 
+import sys 
+import ldap.modlist as modlist 
+import MySQLdb 
+import pickle
+
+# Not found = True, Found = False
+checker = None 
+
+def pk():
+    pickle_in = open("/opt/credential/pwds","rb")
+    dict = pickle.load(pickle_in)
+    return dict
+
+###########################################
+#  Search AD and set boo=checker
+# 
+###########################################
+def ad_search(FN,LN,IP,BD,BPW,UB):
+        LDAP_SERVER = "ldaps://"+IP
+        BIND_DN = BD
+        BIND_PASS = BPW
+        USER_BASE = UB
+        PAGE_SIZE = 10
+        Scope = ldap.SCOPE_SUBTREE
+
+        try:
+                Filter = "(&(objectClass=*)(&(givenName="+FN+")(sn="+LN+")))"
+                Attrs = ["displayName"]
+                global checker
+
+                # LDAP connection
+                try:
+                  ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, 0)
+                  ldap_connection = ldap.initialize(LDAP_SERVER)
+                  ldap_connection.simple_bind_s(BIND_DN, BIND_PASS)
+                except ldap.LDAPError, e:
+                  sys.stderr.write('Error connecting to LDAP server: ' + str(e) + '\n')
+                  sys.exit(1)
+
+                # Lookup usernames from LDAP via paged search
+                l = ldap.initialize(LDAP_SERVER)
+                l.protocol_version = 3
+                l.simple_bind_s(BIND_DN, BIND_PASS)
+                r = l.search(USER_BASE, Scope, Filter, Attrs)
+                Type,user = l.result(r,60)
+
+                if not user:
+                        checker = True
+                else:
+                        Name,Attrs = user[0]
+                        if hasattr(Attrs, 'has_key') and Attrs.has_key('displayName'):
+                                displayName = Attrs['displayName'][0]
+                                checker = False
+                l.unbind_s()
+
+        except (ldap.FILTER_ERROR,UnboundLocalError,TypeError):
+                checker = True
+                pass
+
+
+############# MySQL ##########################################################################
+#        replace mysql.server with "localhost" if you are running via your own server!
+#                        server MySQL username MySQL pass Database name.
+##############################################################################################
+def fetch_table(db_ip,db_usr,db_pw,db_name,table,fn,ln):
+    conn = MySQLdb.connect(db_ip,db_usr,db_pw,db_name)
+    c = conn.cursor()
+    c.execute("SELECT " + fn + "," + ln + " ,EmailAddress FROM "+ table)
+    rows = c.fetchall()
+    return rows 
+    
+# Return pwd, type is list
+pwds = pk()
+
+# FCL AD VALUES
+FCL_AD_IP = '10.40.252.144'
+FCL_BD = 'svc_ciscotms@fcl.ad.crs'
+FCL_BPW = pwds[2]
+FCL_UB = 'ou= all departments, dc=fcl,dc=ad,dc=crs'
+
+# CRC AD VALUES
+CRC_AD_IP = '10.120.120.7'
+CRC_BD = 'svc_ciscoucs@crc.ad.crs'
+CRC_BPW = pwds[3]
+CRC_UB = 'ou=accounts,dc=crc,dc=ad,dc=crs'
+
+# TGP AD VALUES
+TGP_AD_IP = '10.56.1.1'
+TGP_BD = 'svc_ciscoucs@tgpltd.ad.crs'
+TGP_BPW = pwds[3]
+TGP_UB_TGP = 'ou=TGP,dc=tgpltd,dc=ad,dc=crs'
+TGP_UB_USR = 'cn=Users,dc=tgpltd,dc=ad,dc=crs'
+
+# MYSQL VALUES
+db_ip = '10.41.40.131'
+db_usr = 'root'
+db_pw = pwds[4]
+db_name = 'automation'
+table = sys.argv[1]
+
+rows = fetch_table(db_ip,db_usr,db_pw,db_name,table,'FirstName','LastName')
+for eachRow in rows:
+    FN,LN,EMAIL=eachRow
+    ad_search(FN,LN,FCL_AD_IP,FCL_BD,FCL_BPW,FCL_UB)
+    try:
+        if checker:
+            ad_search(FN,LN,CRC_AD_IP,CRC_BD,CRC_BPW,CRC_UB)
+        if checker:
+            ad_search(FN,LN,TGP_AD_IP,TGP_BD,TGP_BPW,TGP_UB_TGP)
+        if checker:
+            ad_search(FN,LN,TGP_AD_IP,TGP_BD,TGP_BPW,TGP_UB_USR)    
+        if checker:
+    	    print "------------> '"+FN+" "+LN+"' Not Found = " + EMAIL 
+        else:
+    	    print FN + " " + LN
+    except(TypeError):
+        print "------------> An Error!"
+]]></script>
+        <scriptargs>${option.table}</scriptargs>
+      </command>
+    </sequence>
+    <uuid>fde07674-53e4-4b4d-b85f-600f4f8087dc</uuid>
+  </job>
+</joblist>
