@@ -25,6 +25,7 @@ import sys
 import ldap.modlist as modlist 
 import MySQLdb
 import pickle
+from multiprocessing import Pool
 
 # Not found = True, Found = False
 checker = None 
@@ -113,17 +114,42 @@ db_name = 'automation'
 table = sys.argv[1]
 
 rows = fetch_table(db_ip,db_usr,db_pw,db_name,table,'First_Name','Last_Name')
-for eachRow in rows:
-    FN,LN,EMAIL=eachRow
+
+
+def gen_each():
+    FLE_list = []
+    for eachRow in rows:
+        FN = eachRow[0]
+        LN = eachRow[1]
+        EMAIL = eachRow[2]
+        FLE = [FN,LN,EMAIL]
+        FLE_list.append(FLE)
+    return FLE_list
+    
+
+def checking_ad(FLE_list):
+    FN = FLE_list[0]
+    LN = FLE_list[1]
+    EMAIL = FLE_list[2]
     ad_search(FN,LN,FCL_AD_IP,FCL_BD,FCL_BPW,FCL_UB)
-    if checker:
-        ad_search(FN,LN,CRC_AD_IP,CRC_BD,CRC_BPW,CRC_UB)
-    if checker:
-        ad_search(FN,LN,TGP_AD_IP,TGP_BD,TGP_BPW,TGP_UB)
-    if checker:
-	    print "------------> '"+FN+" "+LN+"' Not Found = " + EMAIL 
-    else:
-	    print FN + " " + LN       
+    try:
+        if checker:
+            ad_search(FN,LN,CRC_AD_IP,CRC_BD,CRC_BPW,CRC_UB)
+        if checker:
+            ad_search(FN,LN,TGP_AD_IP,TGP_BD,TGP_BPW,TGP_UB)
+        if checker:
+    	    print "------------> '"+FN+" "+LN+"' Not Found = " + EMAIL 
+        else:
+    	    print FN + " " + LN
+    except(TypeError):
+        print "------------> An Error!"
+
+	    
+if __name__ == '__main__':
+    p = Pool(processes=20)
+    FLE_list = gen_each()
+    p.map(checking_ad,FLE_list)
+    p.close()
 ]]></script>
         <scriptargs>${option.table}</scriptargs>
       </command>
