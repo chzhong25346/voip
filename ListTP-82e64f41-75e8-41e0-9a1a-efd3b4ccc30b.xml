@@ -107,7 +107,7 @@ def tpIPmx700crc(client):
 def tpIPmx800dual(client):
         tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
                                                 'NodeName':'cucm8-sub.ad.crs','Model':'36227'})
-        parse(tp)       
+        parse(tp)
 
 
 def main(argv):
@@ -126,8 +126,6 @@ def main(argv):
     tpIPmx800dual(CLIENT6)
     tpIPsx80(CLIENT7)
     print(len(ris_data), " Found:")
-#    for i in ris_data:
-#       print (i)
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 1000)
