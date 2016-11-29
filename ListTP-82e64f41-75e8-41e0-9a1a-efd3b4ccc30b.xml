@@ -27,6 +27,7 @@ from suds.xsd.doctor import ImportDoctor
 import pickle
 import pandas as pd
 import numpy as np
+from functools import wraps
 
 ris_data = []
 
@@ -36,96 +37,91 @@ def pk():
     return dict
 
 def createClient():
-        cmserver = '10.41.40.10'
-        cmport = '8443'
-        username = 'ccmadmin'
-        pwd = pk()
-        password = pwd[1]
-        location = 'https://' + cmserver + ':' + cmport + '/realtimeservice/services/RisPort70?wsdl'
+    cmserver = '10.41.40.10'
+    cmport = '8443'
+    username = 'ccmadmin'
+    pwd = pk()
+    password = pwd[1]
+    location = 'https://' + cmserver + ':' + cmport + '/realtimeservice/services/RisPort70?wsdl'
 
-        t = HttpAuthenticated(username=username, password=password)
-        t.handler=urllib.request.HTTPBasicAuthHandler(t.pm)
+    t = HttpAuthenticated(username=username, password=password)
+    t.handler=urllib.request.HTTPBasicAuthHandler(t.pm)
 
-        ssl_def_context = ssl.create_default_context()
-        ssl_def_context.check_hostname = False
-        ssl_def_context.verify_mode = ssl.CERT_NONE
+    ssl_def_context = ssl.create_default_context()
+    ssl_def_context.check_hostname = False
+    ssl_def_context.verify_mode = ssl.CERT_NONE
 
-        t1=urllib.request.HTTPSHandler(context=ssl_def_context)
-        t.urlopener = urllib.request.build_opener(t.handler,t1)
-        wsdl ='file:///opt/tempfile/axlsqltoolkit/schema/current/AXLAPI.wsdl'
+    t1=urllib.request.HTTPSHandler(context=ssl_def_context)
+    t.urlopener = urllib.request.build_opener(t.handler,t1)
+    wsdl ='file:///opt/tempfile/axlsqltoolkit/schema/current/AXLAPI.wsdl'
 
-        imp = Import('http://schemas.xmlsoap.org/soap/encoding/')
-        doctor = ImportDoctor(imp)
+    imp = Import('http://schemas.xmlsoap.org/soap/encoding/')
+    doctor = ImportDoctor(imp)
 
-        client=Client(url=location, transport=t, doctor=doctor)
-        return client
+    client=Client(url=location, transport=t, doctor=doctor)
+    return client
 
 def parse(tp):
-        for node in tp['SelectCmDeviceResult'].CmNodes:
-            for dev in node.CmDevices:
-                name = dev.Name
-                desc = dev.Description
-                dirn = dev.DirNumber
-                ip = "http://" + dev.IPAddress[0][0] + "/web/signin"
-                global ris_data
-                ris_data.append([desc,name,dirn,ip])
+    for node in tp['SelectCmDeviceResult'].CmNodes:
+        for dev in node.CmDevices:
+            name = dev.Name
+            desc = dev.Description
+            dirn = dev.DirNumber
+            ip = "http://" + dev.IPAddress[0][0] + "/web/signin"
+            global ris_data
+            ris_data.append([desc,name,dirn,ip])
 
-def tpIPsx10(client):
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
-                                                'NodeName':'cucm8-sub1.ad.crs','Model':'682'})
-        parse(tp) 
+# Decorator: Creates client, prase tp            
+def tpIP_with_NN_M(NN,M):
+    def add_wrapping(item):
+        @wraps(item)
+        def wrapped_item():
+            client = createClient()
+            tp = client.service.SelectCmDevice("", {'SelectBy': 'Name', 'Status': 'Any', 'Class': 'Any','NodeName': NN, 'Model': M})
+            parse(tp)
+        return wrapped_item
+    return add_wrapping
 
-def tpIPsx80(client):
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
-                                                'NodeName':'cucm8-sub.ad.crs','Model':'688'})
-        parse(tp)
+@tpIP_with_NN_M('cucm8-sub1.ad.crs','682')
+def tpIPsx10():
+    pass
 
-def tpIPmx300(client):
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
-                                               'NodeName':'cucm8-sub.ad.crs','Model':'690'})
-        parse(tp)
+@tpIP_with_NN_M('cucm8-sub.ad.crs','688')
+def tpIPsx80():
+    pass
+    
+@tpIP_with_NN_M('cucm8-sub.ad.crs','690')
+def tpIPmx300():
+    pass
 
-      
-def tpIPmx800crc(client):
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
-                                                   'NodeName':'cucm8-sub1.ad.crs','Model':'36208'})
-        parse(tp)
+@tpIP_with_NN_M('cucm8-sub1.ad.crs','36208')
+def tpIPmx800crc():
+    pass
+    
+@tpIP_with_NN_M('cucm8-sub.ad.crs','36208')
+def tpIPmx800():
+    pass
 
-
-def tpIPmx800(client):
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
-                                                   'NodeName':'cucm8-sub.ad.crs','Model':'36208'})
-        parse(tp)   
-
-
-def tpIPmx700crc(client): 
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any', 
-                                                   'NodeName':'cucm8-sub1.ad.crs','Model':'36207'})            
-        parse(tp)
-
-
-def tpIPmx800dual(client):
-        tp = client.service.SelectCmDevice("", {'SelectBy':'Name', 'Status':'Any', 'Class':'Any',
-                                                'NodeName':'cucm8-sub.ad.crs','Model':'36227'})
-        parse(tp)
-
+@tpIP_with_NN_M('cucm8-sub1.ad.crs','36207')
+def tpIPmx700crc():
+    pass
+ 
+@tpIP_with_NN_M('cucm8-sub.ad.crs','36227')
+def tpIPmx800dual():
+    pass
 
 def main(argv):
-    CLIENT1 = createClient()
-    CLIENT2 = createClient()
-    CLIENT3 = createClient()
-    CLIENT4 = createClient()
-    CLIENT5 = createClient()
-    CLIENT6 = createClient()
-    CLIENT7 = createClient()
-    tpIPsx10(CLIENT1)    
-    tpIPmx300(CLIENT2)
-    tpIPmx800crc(CLIENT3)
-    tpIPmx800(CLIENT4)
-    tpIPmx700crc(CLIENT5)
-    tpIPmx800dual(CLIENT6)
-    tpIPsx80(CLIENT7)
+    tpIPsx10()
+    tpIPsx80()
+    tpIPmx300()
+    tpIPmx800crc()
+    tpIPmx800()
+    tpIPmx700crc()
+    tpIPmx800dual()
+
     print(len(ris_data), " Found:")
+
+# Pandas formatting
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 1000)
