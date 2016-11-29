@@ -77,7 +77,8 @@ def tpIP_with_NN_M(NN,M):
         @wraps(item)
         def wrapped_item():
             client = createClient()
-            tp = client.service.SelectCmDevice("", {'SelectBy': 'Name', 'Status': 'Any', 'Class': 'Any','NodeName': NN, 'Model': M})
+            tp = client.service.SelectCmDevice("", {'SelectBy': 'Name', 'Status': 'Any', 'Class': 'Any',
+                                                    'NodeName': NN, 'Model': M})
             parse(tp)
         return wrapped_item
     return add_wrapping
@@ -119,7 +120,7 @@ def main(argv):
     tpIPmx700crc()
     tpIPmx800dual()
 
-    print(len(ris_data), " Found:")
+    print('{} Found:'.format(len(ris_data)))
 
 # Pandas formatting
     pd.set_option('display.max_rows', 500)
