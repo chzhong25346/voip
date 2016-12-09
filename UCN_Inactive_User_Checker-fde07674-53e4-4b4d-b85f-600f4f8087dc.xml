@@ -26,6 +26,9 @@ import ldap.modlist as modlist
 import MySQLdb 
 import pickle
 from multiprocessing import Pool
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # Not found = True, Found = False
 checker = None 
@@ -58,6 +61,7 @@ def ad_search(FN,LN,IP,BD,BPW,UB):
                   ldap_connection = ldap.initialize(LDAP_SERVER)
                   ldap_connection.simple_bind_s(BIND_DN, BIND_PASS)
                 except ldap.LDAPError, e:
+                  logging.critical(str(e))       
                   sys.stderr.write('Error connecting to LDAP server: ' + str(e) + '\n')
                   sys.exit(1)
 
@@ -149,11 +153,12 @@ def checking_ad(FLE_list):
         if checker:
             ad_search(FN,LN,TGP_AD_IP,TGP_BD,TGP_BPW,TGP_UB_USR)    
         if checker:
-            print "------------> '"+FN+" "+LN+"' Not Found = " + EMAIL 
+            logging.info('Not Found --> {} {} = {}'.format(FN, LN, EMAIL) )
+#            print "------------> '"+FN+" "+LN+"' Not Found = " + EMAIL 
         else:
             print FN + " " + LN
     except(TypeError):
-        print "------------> An Error!"
+        raise Exception (str(e))
         
         
 if __name__ == '__main__':
