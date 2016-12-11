@@ -1,0 +1,117 @@
+<joblist>
+  <job>
+    <context>
+      <options preserveOrder='true'>
+        <option name='Site' required='true' />
+        <option name='Username' required='true' />
+      </options>
+    </context>
+    <description><![CDATA[add CSF+USERNMAE,
+no line, 
+no devoice association in user]]></description>
+    <executionEnabled>true</executionEnabled>
+    <id>0f6a9e61-0f48-4984-a169-64da162e233f</id>
+    <loglevel>INFO</loglevel>
+    <name>AddCSF</name>
+    <scheduleEnabled>true</scheduleEnabled>
+    <sequence keepgoing='false' strategy='node-first'>
+      <command>
+        <script><![CDATA[#!/usr/bin/python3.4
+
+import ssl
+import urllib
+import sys, getopt, re, requests
+from suds.transport.https import HttpAuthenticated
+from suds.client import Client
+from suds.sax.element import Element
+from xml.etree import ElementTree
+import pickle
+
+
+def pk():
+    pickle_in = open("/opt/credential/pwds", "rb")
+    dict = pickle.load(pickle_in)
+    return dict
+
+
+def createClient():
+    cmserver = '10.41.40.10'
+    cmport = '8443'
+    pwd = pk()
+    username = 'ccmadmin'
+    password = pwd[1]
+    location = 'https://' + cmserver + ':' + cmport + '/axl/'
+
+    t = HttpAuthenticated(username=username, password=password)
+    t.handler = urllib.request.HTTPBasicAuthHandler(t.pm)
+
+    ssl_def_context = ssl.create_default_context()
+    ssl_def_context.check_hostname = False
+    ssl_def_context.verify_mode = ssl.CERT_NONE
+
+    t1 = urllib.request.HTTPSHandler(context=ssl_def_context)
+    t.urlopener = urllib.request.build_opener(t.handler, t1)
+    wsdl = 'file:///opt/tempfile/axlsqltoolkit/schema/current/AXLAPI.wsdl'
+
+    client = Client(wsdl, location=location, transport=t)
+    return client
+
+
+def delPhone(client,deviceid):
+        try:
+            delPhone = client.service.removePhone(deviceid)
+            return delPhone
+        except:
+            return "-ERROR: executing delPhone"
+
+
+def addCSF(client, userName, siteName):
+    deviceName = 'CSF' + userName.upper().replace('.','')[:11]
+    DP = 'DP_' + siteName
+    Location = 'LOC_' + siteName
+    try:
+        addPhone = client.service.addPhone({
+                    "name": deviceName,
+                    "product": "Cisco Unified Client Services Framework",
+                    "description": userName,
+                    "sipProfileName": "Standard SIP Profile",
+                    "phoneTemplateName": "Standard Client Services Framework",
+                    "class": "Phone",
+                    "protocol": "SIP",
+                    "protocolSide": "User",
+                    "devicePoolName": DP,
+                    "commonPhoneConfigName": "Standard Common Phone Profile",
+                    "locationName": Location,
+                    "ownerUserName": userName,
+                    "digestUser": userName,
+                    "securityProfileName": "Cisco Unified Client Services Framework - Standard SIP Non-Secure Profile"})
+
+        return addPhone
+
+    except:
+        print(str(delPhone(client, deviceName)))
+        return "-ERROR: executing addPhone, rolled back!"
+
+
+def main(argv):
+    try:
+        opts, args = getopt.getopt(argv, ["ac"], ["addCSF="])
+    except getopt.GetoptError as err:
+        print(err)
+        sys.exit(2)
+    for opt, arg in opts:
+        print('Processing... ' + arg)
+        if opt == '--addCSF':
+            CLIENT = createClient()
+            arg = arg.split(',')
+            USERNAME, SITENAME = arg
+            print(str(addCSF(CLIENT, USERNAME, SITENAME)))
+
+if __name__ == '__main__':
+    main(sys.argv[1:])]]></script>
+        <scriptargs>--addCSF ${option.Username},${option.Site}</scriptargs>
+      </command>
+    </sequence>
+    <uuid>0f6a9e61-0f48-4984-a169-64da162e233f</uuid>
+  </job>
+</joblist>
