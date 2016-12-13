@@ -28,6 +28,13 @@ from suds.client import Client
 from suds.sax.element import Element
 from xml.etree import ElementTree
 import pickle
+import sys
+import logging
+
+def error_handling():
+    return '{}. {}, at line: {}'.format(sys.exc_info()[0],
+                                    sys.exc_info()[1],
+                                    sys.exc_info()[2].tb_lineno)
 
 def pk():
     pickle_in = open("/opt/credential/pwds","rb")
@@ -62,16 +69,16 @@ def getUser(client,userName):
 	    getUser = client.service.getUser(userid=userName)
 	    DEVICEID = getUser[0][0][11][0][0]
 	    return DEVICEID
-	except:
-		return "-ERROR: executing getPhone"
+	except Exception as e:
+		logging.error(error_handling())
 
 
 def getPhone(client,deviceid):
 	try:
 	    getPhone = client.service.getPhone('SEP' + deviceid)
 	    return getPhone['return']['phone']['lines']['line'][0]['dirn']['pattern']
-	except:
-	    return "-ERROR: executing getPhone"
+	except Exception as e:
+	    logging.error(error_handling())
 
 
 
@@ -80,14 +87,14 @@ def delPhone(client,deviceid):
             delPhone = client.service.removePhone('SEP' + deviceid)
             return delPhone
         except:
-            return "-ERROR: executing delPhone"
+            logging.error(error_handling())
 
 
 def main(argv):
         try:
                 opts, args = getopt.getopt(argv, ["gu","gp","dp"],["getUser=","getPhone=","delPhone="])
         except getopt.GetoptError as err:
-                print (err)
+                logging.error(error_handling())
                 sys.exit(2)
         for opt, arg in opts:
                 print ('Processing... ' + arg)
