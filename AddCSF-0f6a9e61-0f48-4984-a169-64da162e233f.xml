@@ -26,7 +26,13 @@ from suds.client import Client
 from suds.sax.element import Element
 from xml.etree import ElementTree
 import pickle
+import sys
+import logging
 
+def error_handling():
+    return '{}. {}, line: {}'.format(sys.exc_info()[0],
+                                           sys.exc_info()[1],
+                                           sys.exc_info()[2].tb_lineno)
 
 def pk():
     pickle_in = open("/opt/credential/pwds", "rb")
@@ -61,8 +67,8 @@ def delPhone(client,deviceid):
         try:
             delPhone = client.service.removePhone(deviceid)
             return delPhone
-        except:
-            return "-ERROR: executing delPhone"
+        except Exception as e:
+            logging.error(error_handling())
 
 
 def addCSF(client, userName, siteName):
@@ -88,16 +94,16 @@ def addCSF(client, userName, siteName):
 
         return addPhone
 
-    except:
-        print(str(delPhone(client, deviceName)))
-        return "-ERROR: executing addPhone, rolled back!"
+    except Exception as e:
+        delPhone(client, deviceName)
+        logging.error(error_handling())
 
 
 def main(argv):
     try:
         opts, args = getopt.getopt(argv, ["ac"], ["addCSF="])
     except getopt.GetoptError as err:
-        print(err)
+        logging.error(error_handling())
         sys.exit(2)
     for opt, arg in opts:
         print('Processing... ' + arg)
